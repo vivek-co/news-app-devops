@@ -79,7 +79,7 @@
 <distributionManagement>
     <snapshotRepository>
         <id>jfrog-snapshots</id>
-        <url>https://trialk7z6un.jfrog.io/artifactory/artifactory-build-info/</url>
+        <url>https://trialk7z6un.jfrog.io/artifactory/news-app/</url>
     </snapshotRepository>
 
     <repository>
