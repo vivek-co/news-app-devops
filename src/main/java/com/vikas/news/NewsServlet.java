@@ -32,3 +32,13 @@ public class NewsServlet extends HttpServlet {
 
         // Avoid null pointer
         if (headlinesList == null) {
+            headlinesList = new ArrayList<>();
+        }
+
+        // Set headlines as request attribute
+        request.setAttribute("headlines", headlinesList);
+
+        // Forward to JSP
+        request.getRequestDispatcher("/index.jsp").forward(request, response);
+    }
+}
