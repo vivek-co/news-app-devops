@@ -1,7 +1,6 @@
 package com.vikas.news;
 
 import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-@WebServlet("/news")   // 🔥 IMPORTANT: This makes your servlet available at /news
 public class NewsServlet extends HttpServlet {
 
     private String apiKey;
@@ -84,11 +82,14 @@ public class NewsServlet extends HttpServlet {
         LocalDate today = LocalDate.now();
         String todayStr = today.toString();
 
+        // Fetch today's news first
         List<String> headlines = fetchNews(todayStr, todayStr);
 
+        // If no news found, fetch last 7 days
         if (headlines.isEmpty()) {
             LocalDate weekAgo = today.minusDays(7);
             headlines = fetchNews(weekAgo.toString(), todayStr);
+
             req.setAttribute("date", weekAgo + " to " + todayStr);
         } else {
             req.setAttribute("date", todayStr);
