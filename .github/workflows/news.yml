@@ -1,5 +1,4 @@
 name: News App CI/CD
-
 on:
   push:
     branches: [ feature-2 ]
