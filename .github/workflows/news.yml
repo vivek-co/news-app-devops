@@ -77,10 +77,12 @@ jobs:
 
     - name: Status check
       run: |
+        SERVER_IP=${{ secrets.SERVER_IP }}
         curl -I http://$SERVER_IP/ || true
 
     - name: Verify app content
       run: |
+        SERVER_IP=${{ secrets.SERVER_IP }}
         RESPONSE=$(curl -s http://$SERVER_IP/)
         echo "$RESPONSE"
         echo "$RESPONSE" | grep "Welcome to news App" || true
