@@ -4,87 +4,61 @@ on:
   push:
     branches: [ feature-1 ]
   pull_request:
+    branches: [ feature-1 ]
 
 jobs:
   build-deploy:
     runs-on: self-hosted
 
+    env:
+      SERVER_IP: ***        # Replace with your server IP
+      APP_NAME: news-app
+
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Check & Install Java 17
-      run: |
-        if java -version >/dev/null 2>&1; then
-            echo "Java already installed"
-            java -version
-        else
-            sudo apt update -y
-            sudo apt install -y openjdk-17-jdk
-            java -version
-        fi
-
-    - name: Check & Install Maven
-      run: |
-        if mvn -version >/dev/null 2>&1; then
-            echo "Maven already installed"
-            mvn -version
-        else
-            sudo apt install -y maven
-            mvn -version
-        fi
-
-    - name: Check & Install Tomcat 10
-      run: |
-        if [ -d "/opt/tomcat10" ]; then
-            echo "Tomcat already installed"
-        else
-            cd /opt
-            sudo wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.49/bin/apache-tomcat-10.1.49.tar.gz
-            sudo tar -xzf apache-tomcat-10.1.49.tar.gz
-            sudo mv apache-tomcat-10.1.49 /opt/tomcat10
-            sudo chmod +x /opt/tomcat10/bin/*.sh
-        fi
-
-    - name: Build WAR File
-      run: mvn clean package -DskipTests
-
-    - name: Upload WAR Artifact
-      uses: actions/upload-artifact@v4
+    - name: Set up Java 17
+      uses: actions/setup-java@v3
       with:
-        name: news-app-war
-        path: target/*.war
+        distribution: 'temurin'
+        java-version: '17'
 
-    - name: Deploy WAR to Tomcat
+    - name: Set up Maven
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Build with Maven
+      run: mvn clean package
+
+    - name: Deploy to Tomcat
       run: |
-        APP_NAME=${{ secrets.MY_APP_NAME }}
-        SERVER_IP=${{ secrets.SERVER_IP }}
-
-        echo "Stopping Tomcat"
+        echo "Stopping Tomcat..."
         sudo /opt/tomcat10/bin/shutdown.sh || true
         sleep 5
 
-        echo "Removing old ROOT deployment"
+        echo "Removing old ROOT deployment..."
         sudo rm -rf /opt/tomcat10/webapps/ROOT
         sudo rm -f /opt/tomcat10/webapps/ROOT.war
 
-        echo "Deploying new WAR as ROOT"
-        sudo cp target/*.war /opt/tomcat10/webapps/ROOT.war
+        echo "Deploying new WAR as ROOT..."
+        sudo cp target/${APP_NAME}.war /opt/tomcat10/webapps/ROOT.war
 
-        echo "Starting Tomcat"
+        echo "Starting Tomcat..."
         sudo /opt/tomcat10/bin/startup.sh
-        sleep 15
 
-    - name: Status check
-      run: |
-        SERVER_IP=${{ secrets.SERVER_IP }}
-        curl -I http://$SERVER_IP/ || true
+        echo "Waiting for Tomcat to start and app to be live..."
+        for i in {1..15}; do
+          RESPONSE=$(curl -s http://${SERVER_IP}:8080/)
+          if echo "$RESPONSE" | grep -q "Welcome to news App"; then
+            echo "App is live!"
+            break
+          fi
+          echo "Waiting for Tomcat... ($i/15)"
+          sleep 3
+        done
 
-    - name: Verify app content
-      run: |
-        SERVER_IP=${{ secrets.SERVER_IP }}
-        RESPONSE=$(curl -s http://$SERVER_IP/)
-        echo "$RESPONSE"
-        echo "$RESPONSE" | grep "Welcome to news App" || true
-        echo "$RESPONSE" | grep "Live News Categories" || true
-        echo "$RESPONSE" | grep "Top Headlines" || true
+        echo "Final verification:"
+        curl http://${SERVER_IP}:8080/ | grep -E "Welcome to news App|Live News Categories|Top Headlines" || true
