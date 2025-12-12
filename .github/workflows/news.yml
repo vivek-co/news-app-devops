@@ -1,60 +1,58 @@
 name: News App CI/CD
+
 on:
   push:
     branches: [ feature-1 ]
+  pull_request:
+    branches: [ feature-1 ]
+
 jobs:
   build-deploy:
     runs-on: self-hosted
 
     env:
-      SERVER_IP: ***        # Replace with your server IP
-      APP_NAME: news-app
+      SERVER_IP: ${{ secrets.SERVER_IP }}
+      APP_NAME: ${{ secrets.MY_APP_NAME }}
 
     steps:
-    - name: Checkout Source Code
-      uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
-    - name: Set up Java 17
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Set up Maven
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Build with Maven
+        run: mvn clean package
 
-    - name: Build with Maven
-      run: mvn clean package
+      - name: Deploy to Tomcat
+        run: |
+          echo "Stopping Tomcat..."
+          sudo /opt/tomcat10/bin/shutdown.sh || true
+          sleep 5
 
-    - name: Deploy to Tomcat
-      run: |
-        echo "Stopping Tomcat..."
-        sudo /opt/tomcat10/bin/shutdown.sh || true
-        sleep 5
+          echo "Removing old ROOT deployment..."
+          sudo rm -rf /opt/tomcat10/webapps/ROOT
+          sudo rm -f /opt/tomcat10/webapps/ROOT.war
 
-        echo "Removing old ROOT deployment..."
-        sudo rm -rf /opt/tomcat10/webapps/ROOT
-        sudo rm -f /opt/tomcat10/webapps/ROOT.war
+          echo "Deploying new WAR as ROOT..."
+          sudo cp target/${APP_NAME}.war /opt/tomcat10/webapps/ROOT.war
 
-        echo "Deploying new WAR as ROOT..."
-        sudo cp target/${APP_NAME}.war /opt/tomcat10/webapps/ROOT.war
+          echo "Starting Tomcat..."
+          sudo /opt/tomcat10/bin/startup.sh
 
-        echo "Starting Tomcat..."
-        sudo /opt/tomcat10/bin/startup.sh
+          echo "Waiting for Tomcat to start..."
+          for i in {1..15}; do
+            RESPONSE=$(curl -s http://${SERVER_IP}:8080/)
+            if echo "$RESPONSE" | grep -q "Welcome to news App"; then
+              echo "App is live!"
+              break
+            fi
+            echo "Waiting for Tomcat... ($i/15)"
+            sleep 3
+          done
 
-        echo "Waiting for Tomcat to start and app to be live..."
-        for i in {1..15}; do
-          RESPONSE=$(curl -s http://${SERVER_IP}:8080/)
-          if echo "$RESPONSE" | grep -q "Welcome to news App"; then
-            echo "App is live!"
-            break
-          fi
-          echo "Waiting for Tomcat... ($i/15)"
-          sleep 3
-        done
-
-        echo "Final verification:"
-        curl http://${SERVER_IP}:8080/ | grep -E "Welcome to news App|Live News Categories|Top Headlines" || true
+          echo "Final verification:"
+          curl http://${SERVER_IP}:8080/ | grep -E "Welcome to news App|Live News Categories|Top Headlines" || true
