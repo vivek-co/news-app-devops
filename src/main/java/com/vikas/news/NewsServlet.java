@@ -15,7 +15,6 @@ public class NewsServlet extends HttpServlet {
 
     // Simulate fetching headlines from a service
     private List<String> getHeadlinesFromService() {
-        // TODO: Replace this with real data fetching (DB, API, etc.)
         List<String> headlines = new ArrayList<>();
         headlines.add("Breaking News: AI Revolutionizes Tech Industry");
         headlines.add("Sports Update: Local Team Wins Championship");
@@ -30,7 +29,7 @@ public class NewsServlet extends HttpServlet {
         // Fetch headlines
         List<String> headlinesList = getHeadlinesFromService();
 
-        // Avoid null pointer
+        // Ensure no null
         if (headlinesList == null) {
             headlinesList = new ArrayList<>();
         }
