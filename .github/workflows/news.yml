@@ -83,7 +83,7 @@ jobs:
         sudo /opt/tomcat10/bin/startup.sh
         echo "Waiting for Tomcat to start..."
         for i in {1..15}; do
-          RESPONSE=$(curl -s http://${SERVER_IP}:8080/ || true)
+          RESPONSE=$(curl -s http://${SERVER_IP}:8080/news-app || true)
           if echo "$RESPONSE" | grep -q "Welcome to news App"; then
             echo "App is live!"
             break
@@ -94,7 +94,7 @@ jobs:
 
     - name: Verify app content
       run: |
-        RESPONSE=$(curl -s http://${SERVER_IP}:8080/)
+        RESPONSE=$(curl -s http://${SERVER_IP}:8080/news-app)
         echo "$RESPONSE"
         echo "$RESPONSE" | grep "Welcome to news App" || true
         echo "$RESPONSE" | grep "Live News Categories" || true
