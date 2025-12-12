@@ -12,6 +12,9 @@ jobs:
     env:
       SERVER_IP: ${{ secrets.SERVER_IP }}
       APP_NAME: ${{ secrets.MY_APP_NAME }}
+      ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
+      ARTIFACTORY_USER: ${{ secrets.ARTIFACTORY_USER }}
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
 
     steps:
     - name: Checkout Source Code
@@ -64,6 +67,13 @@ jobs:
       with:
         name: news-app-war
         path: target/${{ secrets.MY_APP_NAME }}.war
+
+    - name: Deploy WAR to JFrog Artifactory
+      run: |
+        echo "Deploying WAR to JFrog Artifactory..."
+        curl -u $ARTIFACTORY_USER:$ARTIFACTORY_TOKEN \
+             -T target/${APP_NAME}.war \
+             "$ARTIFACTORY_URL/libs-release-local/${APP_NAME}.war"
 
     - name: Deploy WAR to Tomcat
       run: |
