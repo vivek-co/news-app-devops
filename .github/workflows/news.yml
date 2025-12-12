@@ -1,10 +1,9 @@
-name: Deploy News App
+name: News App CI/CD
 
 on:
   push:
     branches: [ feature-1 ]
   pull_request:
-    branches: [ feature-1 ]
 
 jobs:
   build-deploy:
@@ -12,40 +11,74 @@ jobs:
 
     env:
       SERVER_IP: ${{ secrets.SERVER_IP }}
-      APP_NAME: ${{ secrets.APP_NAME }}
+      APP_NAME: ${{ secrets.MY_APP_NAME }}
 
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Set up Java 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: 17
-        distribution: temurin
-
-    - name: Build with Maven
-      run: mvn clean package
-
-    - name: Stop Tomcat
+    - name: Check & Install Java 17
       run: |
+        echo "Checking Java"
+        if java -version >/dev/null 2>&1; then
+            echo "Java already installed"
+            java -version
+        else
+            echo "Installing Java 17..."
+            sudo apt update -y
+            sudo apt install -y openjdk-17-jdk
+            java -version
+        fi
+
+    - name: Check & Install Maven
+      run: |
+        echo "Checking Maven"
+        if mvn -version >/dev/null 2>&1; then
+            echo "Maven already installed"
+            mvn -version
+        else
+            echo "Installing Maven..."
+            sudo apt install -y maven
+            mvn -version
+        fi
+
+    - name: Check & Install Tomcat 10
+      run: |
+        echo "Checking Tomcat installation"
+        if [ -d "/opt/tomcat10" ]; then
+            echo "Tomcat already installed"
+        else
+            echo "Installing Tomcat 10..."
+            cd /opt
+            sudo wget https://archive.apache.org/dist/tomcat/tomcat-10/v10.1.49/bin/apache-tomcat-10.1.49.tar.gz
+            sudo tar -xzf apache-tomcat-10.1.49.tar.gz
+            sudo mv apache-tomcat-10.1.49 /opt/tomcat10
+            sudo chmod +x /opt/tomcat10/bin/*.sh
+        fi
+
+    - name: Build WAR File
+      run: mvn clean package -DskipTests
+
+    - name: Upload WAR as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: news-app-war
+        path: target/${{ secrets.MY_APP_NAME }}.war
+
+    - name: Deploy WAR to Tomcat
+      run: |
+        if [ -z "$APP_NAME" ]; then
+          echo "Error: APP_NAME is not set"
+          exit 1
+        fi
         echo "Stopping Tomcat..."
         sudo /opt/tomcat10/bin/shutdown.sh || true
         sleep 5
-
-    - name: Remove old deployment
-      run: |
         echo "Removing old ROOT deployment..."
         sudo rm -rf /opt/tomcat10/webapps/ROOT
         sudo rm -f /opt/tomcat10/webapps/ROOT.war
-
-    - name: Deploy new WAR
-      run: |
         echo "Deploying new WAR as ROOT..."
         sudo cp target/${APP_NAME}.war /opt/tomcat10/webapps/ROOT.war
-
-    - name: Start Tomcat
-      run: |
         echo "Starting Tomcat..."
         sudo /opt/tomcat10/bin/startup.sh
         echo "Waiting for Tomcat to start..."
@@ -56,7 +89,13 @@ jobs:
             break
           fi
           echo "Waiting for Tomcat... ($i/15)"
-          sleep 10
+          sleep 3
         done
-        echo "Final verification:"
-        curl http://${SERVER_IP}:8080/ | grep -E "Welcome to news App|Live News Categories|Top Headlines" || true
+
+    - name: Verify app content
+      run: |
+        RESPONSE=$(curl -s http://${SERVER_IP}:8080/)
+        echo "$RESPONSE"
+        echo "$RESPONSE" | grep "Welcome to news App" || true
+        echo "$RESPONSE" | grep "Live News Categories" || true
+        echo "$RESPONSE" | grep "Top Headlines" || true
