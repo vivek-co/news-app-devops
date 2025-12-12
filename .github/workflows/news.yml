@@ -2,9 +2,6 @@ name: News App CI/CD
 on:
   push:
     branches: [ feature-1 ]
-  pull_request:
-    branches: [ feature-1 ]
-
 jobs:
   build-deploy:
     runs-on: self-hosted
